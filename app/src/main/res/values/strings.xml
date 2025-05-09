@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">MotoTrack</string>
+    <string name="action_settings">Settings</string>
+
+
+    <string name="lean_title">Lean</string>
+    <string name="speed_title">Speed</string>
+    <string name="acceleration_title">Acceleration</string>
+    <string name="altitude_title">Altitude</string>
+
+    <string name="track_fragment_label">MotoTrack</string>
+    <string name="save_fragment_label">MotoTrack</string>
+    <string name="ride_fragment_label">MotoTrack</string>
+    <string name="list_fragment_label">MotoTrack</string>
+    <string name="settings_fragment_label">MotoTrack</string>
+    <string name="title_activity_track">MotoTrack</string>
+    <string name="action_delete">Delete</string>
+</resources>

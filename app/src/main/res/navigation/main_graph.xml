@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/ListFragment">
+
+    <fragment
+        android:id="@+id/ListFragment"
+        android:name="com.gwynn7.mototrack.mainActivityFragments.ListFragment"
+        android:label="@string/list_fragment_label"
+        tools:layout="@layout/list_fragment">
+
+        <action
+            android:id="@+id/action_list_to_ride"
+            app:destination="@id/RideFragment" />
+        <action
+            android:id="@+id/action_list_to_settings"
+            app:destination="@id/SettingsFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/RideFragment"
+        android:name="com.gwynn7.mototrack.mainActivityFragments.RideFragment"
+        android:label="@string/ride_fragment_label"
+        tools:layout="@layout/ride_fragment">
+
+        <action
+            android:id="@+id/action_ride_to_settings"
+            app:destination="@id/SettingsFragment" />
+        <argument
+            android:name="rideId"
+            app:argType="long" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/SettingsFragment"
+        android:name="com.gwynn7.mototrack.mainActivityFragments.SettingsFragment"
+        android:label="@string/settings_fragment_label"
+        tools:layout="@layout/settings_fragment">
+    </fragment>
+</navigation>
