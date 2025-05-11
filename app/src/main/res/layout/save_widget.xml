@@ -28,6 +28,7 @@
                 android:layout_weight="1"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
+                app:tint="?attr/colorOnBackground"
                 android:src="@drawable/delete" />
 
             <ImageButton
@@ -37,6 +38,7 @@
                 android:layout_weight="1"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
+                app:tint="?attr/colorOnBackground"
                 android:src="@drawable/start" />
             <ImageButton
                 android:id="@+id/saveButton"
@@ -45,6 +47,7 @@
                 android:layout_weight="1"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
+                app:tint="?attr/colorOnBackground"
                 android:src="@drawable/save" />
         </LinearLayout>
 

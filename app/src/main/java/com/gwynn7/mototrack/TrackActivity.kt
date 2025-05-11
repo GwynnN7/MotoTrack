@@ -2,9 +2,13 @@ package com.gwynn7.mototrack
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -26,7 +30,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.NotificationCompat
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -36,6 +40,7 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import com.gwynn7.mototrack.database.Ride
@@ -46,9 +51,17 @@ import com.gwynn7.mototrack.databinding.ActivityTrackBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -58,6 +71,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
     private lateinit var mMap: GoogleMap
     private lateinit var sensorManager: SensorManager
     private lateinit var locationManager: LocationManager
+    private lateinit var notificationManager: NotificationManager
     private var accelerationSensor: Sensor? = null
     private var gravitySensor: Sensor? = null
 
@@ -69,6 +83,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
 
     private lateinit var leanText: TextView
     private lateinit var speedText: TextView
+    private lateinit var messageText: TextView
 
     private lateinit var calibrationLayout: FrameLayout
     private lateinit var calibrationButton: Button
@@ -85,10 +100,13 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
 
     private var leanTracker: LeanTracker = LeanTracker()
     private lateinit var rideDao: RideDAO
+
     private var calibrated = false
+    private var startedMoving = false
 
     private lateinit var ride: Ride
     private lateinit var rideData: MutableList<RideData>
+    private var fuelStations: MutableList<Marker> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,6 +137,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
         pauseButton = findViewById<ImageButton>(R.id.pauseButton)
         pauseButton.setOnClickListener {
             showSaveWidget()
+            notificationManager.cancelAll()
             Toast.makeText(this, "Tracking paused", Toast.LENGTH_SHORT).show()
         }
         saveButton = findViewById<ImageButton>(R.id.saveButton)
@@ -149,12 +168,15 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
 
         leanText = findViewById<TextView>(R.id.leanText)
         speedText = findViewById<TextView>(R.id.speedText)
+        messageText = findViewById<TextView>(R.id.messageText)
 
         calibrationButton = findViewById<Button>(R.id.calibrationButton)
         calibrationButton.isEnabled = false
         calibrationButton.setOnClickListener {
-            val timer = object : CountDownTimer(3000, 1000) {
-                override fun onTick(millisUntilFinished: Long) {}
+            val timer = object : CountDownTimer(4500, 500) {
+                override fun onTick(millisUntilFinished: Long) {
+                    if(millisUntilFinished <= 1000) messageText.text = "Let's Ride!"
+                }
 
                 override fun onFinish() {
                     leanTracker.stopCalibration()
@@ -165,17 +187,30 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
                     calibrationLayout.visibility = View.GONE
                     mapLayout.visibility = View.VISIBLE
                     mapWidget.visibility = View.VISIBLE
+
+                    val startNotification = NotificationCompat.Builder(this@TrackActivity, "motoTrack")
+                        .setSmallIcon(R.drawable.logo)
+                        .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.logo))
+                        .setContentTitle("Ride Started")
+                        .setContentText("Enjoy your ride!")
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setDefaults(Notification.DEFAULT_ALL)
+                        .setAutoCancel(true)
+                        .build()
+                    notificationManager.notify(0, startNotification)
                 }
             }
 
             leanTracker.startCalibration()
             calibrationButton.isEnabled = false
-            calibrationButton.text = "Lean your bike to calibrate"
+            calibrationButton.text = "Calibrating..."
+            messageText.text = "Lean your bike left and right"
             timer.start()
         }
 
         sensorManager = this.getSystemService(SENSOR_SERVICE) as SensorManager
         locationManager = this.getSystemService(LOCATION_SERVICE) as LocationManager
+        notificationManager = this.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         accelerationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         gravitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
@@ -195,62 +230,16 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
                 }
             }
         )
-    }
 
-    fun saveAndExit()
-    {
-        lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                ride.endTme = System.currentTimeMillis()
-                val rideId = rideDao.insertRide(ride)
-                rideData.forEach { it.rideId = rideId }
-                rideDao.insertRideData(rideData)
-            }
-
-            val intent = Intent(this@TrackActivity, MainActivity::class.java)
-            startActivity(intent)
-            finish()
+        val channel = NotificationChannel(
+            "motoTrack",
+            "Ride Notifications",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Channel for ride notifications"
+            enableVibration(true)
         }
-    }
-
-    fun screenshotAndSave()
-    {
-        loadingLayout.visibility = View.VISIBLE
-        mapWidget.visibility = View.GONE
-
-        val newSize = mapView.layoutParams
-        newSize.width = Resources.getSystem().displayMetrics.widthPixels
-        newSize.height = newSize.width
-        mapView.layoutParams = newSize
-        mapView.invalidate()
-
-        val builder = LatLngBounds.Builder()
-        rideData.forEach { builder.include(LatLng(it.latitude, it.longitude)) }
-        val bounds = builder.build()
-        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 400)
-        mMap.moveCamera(cameraUpdate)
-
-        Toast.makeText(this, "Taking a screenshot of your ride...", Toast.LENGTH_SHORT).show()
-        mMap.setOnMapLoadedCallback {
-            mMap.snapshot { bitmap ->
-                if(bitmap != null) ride.snapshot = saveMapSnapshot(bitmap)
-                saveAndExit()
-            }
-        }
-    }
-
-    fun showSaveWidget() {
-        stopTracking()
-
-        mapWidget.visibility = View.GONE
-        saveWidget.visibility = View.VISIBLE
-    }
-
-    fun showMapWidget() {
-        startTracking()
-
-        mapWidget.visibility = View.VISIBLE
-        saveWidget.visibility = View.GONE
+        notificationManager.createNotificationChannel(channel)
     }
 
     override fun onResume() {
@@ -290,6 +279,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
+        if(!calibrated) return
         when (event?.sensor?.type) {
             Sensor.TYPE_LINEAR_ACCELERATION -> {
                 val ax = event.values[0]
@@ -308,30 +298,62 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onLocationChanged(newLocation: Location) {
         calibrationButton.isEnabled = (true && !leanTracker.isCalibrating)
-        if(calibrationButton.isEnabled)
-        {
+        if(calibrationButton.isEnabled) {
             calibrationButton.text = "Calibrate and Start"
+            messageText.visibility = View.VISIBLE
         }
 
         if(!calibrated) return
 
-        var speed = lastRideData?.speed ?: 0
-        if(newLocation.hasSpeed()) {
-            speed = (newLocation.speed * 3.6f).roundToInt()
-            speedText.text = "%d".format(speed)
-        }
-
-        if(speed < 5) return
-
-        currentLocation?.let { ride.totalDistance += it.distanceTo(newLocation) }
-
         val newCoordinates = LatLng(newLocation.latitude, newLocation.longitude)
+        val speed = if(newLocation.hasSpeed()) (newLocation.speed * 3.6f).roundToInt() else lastRideData?.speed ?: 0
         val altitude = if(newLocation.hasAltitude()) newLocation.altitude else lastRideData?.altitude ?: 0.0
+
+        speedText.text = "%d".format(speed)
+
+        if(!startedMoving)
+        {
+            if(speed > 0) startedMoving = true
+            if(rideData.isNotEmpty()) return
+            mMap.addMarker(
+                MarkerOptions()
+                    .position(LatLng(newLocation.latitude, newLocation.longitude))
+                    .title("Start")
+            )
+        }
+        else
+        {
+            if(speed == 0) {
+                val activeNotifications = notificationManager.activeNotifications
+                val isNotificationActive = activeNotifications.any { it.id == 1 }
+                if (!isNotificationActive) {
+                    val notification = NotificationCompat.Builder(this, "motoTrack")
+                        .setSmallIcon(R.drawable.logo)
+                        .setContentTitle("Motorcycle Stopped")
+                        .setContentText("Remember your kickstand when you get off!")
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setDefaults(Notification.DEFAULT_ALL)
+                        .setOngoing(true)
+                        .build()
+                    notificationManager.notify(1, notification)
+
+                    getNearbyFuelStations(newLocation)
+                }
+                return
+            }
+            else if(speed >= 10) {
+                fuelStations.forEach { it.remove() }
+                fuelStations.clear()
+                notificationManager.cancelAll()
+            }
+        }
 
         val newData = RideData(id=0, rideId = -1, newCoordinates.latitude, newCoordinates.longitude, altitude, lastMaxAcceleration, speed, lastMaxLean)
         rideData.add(newData)
+        currentLocation?.let { ride.totalDistance += it.distanceTo(newLocation) }
 
         val cameraPosition = CameraPosition.Builder()
             .target(newCoordinates)
@@ -346,15 +368,67 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
         lastMaxLean = 0
         lastMaxAcceleration = 0.0
         lastRideData = newData
-        if(currentLocation == null)
-        {
-            mMap.addMarker(
-                MarkerOptions()
-                    .position(LatLng(newLocation.latitude, newLocation.longitude))
-                    .title("Start")
-            )
-        }
         currentLocation = newLocation
+    }
+
+    private fun getNearbyFuelStations(location: Location) {
+        val url = HttpUrl.Builder()
+            .scheme("https")
+            .host("maps.googleapis.com")
+            .addPathSegments("maps/api/place/nearbysearch/json")
+            .addQueryParameter("location", String.format(Locale.US, "%f,%f", location.latitude, location.longitude))
+            .addQueryParameter("radius", "2000")
+            .addQueryParameter("type", "gas_station")
+            .addQueryParameter("key", "AIzaSyCNor3A8rCY0IzuwHfbtLtW-LnGboYCzwM")
+            .build()
+
+        val request = Request.Builder().url(url).build()
+
+        val client = OkHttpClient()
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("PlacesAPI", "Request failed: ${e.message}")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.body?.string()?.let { body ->
+                    val json = JSONObject(body)
+                    val results = json.getJSONArray("results")
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.Main){
+                            for (i in 0 until results.length()) {
+                                val place = results.getJSONObject(i)
+                                val name = place.getString("name")
+                                val stationLoc = place.getJSONObject("geometry").getJSONObject("location")
+                                val lat = stationLoc.getDouble("lat")
+                                val lng = stationLoc.getDouble("lng")
+
+                                val stationLocation = Location("").apply {
+                                    latitude = lat
+                                    longitude = lng
+                                }
+                                val marker = mMap.addMarker(
+                                    MarkerOptions()
+                                        .position(LatLng(lat, lng))
+                                        .title(name)
+                                        .snippet("%.2f km".format(location.distanceTo(stationLocation)))
+                                )
+
+                                if(fuelStations.isEmpty()) marker?.showInfoWindow()
+                                marker?.let { fuelStations.add(it) }
+                            }
+
+
+                            val builder = LatLngBounds.Builder()
+                            fuelStations.forEach { builder.include(it.position) }
+                            val bounds = builder.build()
+                            val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
+                            mMap.moveCamera(cameraUpdate)
+                        }
+                    }
+                }
+            }
+        })
     }
 
     private fun drawColoredPath(newData: RideData) {
@@ -363,10 +437,50 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
             val polylineOptions = PolylineOptions()
                 .add(LatLng(lastRideData!!.latitude, lastRideData!!.longitude), LatLng(newData.latitude, newData.longitude))
                 .width(8f)
-                .color(Color.RED)
+                .color(Color.CYAN)
                 .geodesic(true)
 
             mMap.addPolyline(polylineOptions)
+        }
+    }
+
+    fun saveAndExit() {
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                ride.endTme = System.currentTimeMillis()
+                val rideId = rideDao.insertRide(ride)
+                rideData.forEach { it.rideId = rideId }
+                rideDao.insertRideData(rideData)
+            }
+
+            val intent = Intent(this@TrackActivity, MainActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    fun screenshotAndSave() {
+        loadingLayout.visibility = View.VISIBLE
+        mapWidget.visibility = View.GONE
+
+        val newSize = mapView.layoutParams
+        newSize.width = Resources.getSystem().displayMetrics.widthPixels
+        newSize.height = newSize.width
+        mapView.layoutParams = newSize
+        mapView.invalidate()
+
+        val builder = LatLngBounds.Builder()
+        rideData.forEach { builder.include(LatLng(it.latitude, it.longitude)) }
+        val bounds = builder.build()
+        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 250)
+        mMap.moveCamera(cameraUpdate)
+
+        Toast.makeText(this, "Taking a screenshot of your ride...", Toast.LENGTH_SHORT).show()
+        mMap.setOnMapLoadedCallback {
+            mMap.snapshot { bitmap ->
+                if(bitmap != null) ride.snapshot = saveMapSnapshot(bitmap)
+                saveAndExit()
+            }
         }
     }
 
@@ -383,6 +497,20 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
         } catch (e: IOException) {
             null
         }
+    }
+
+    fun showSaveWidget() {
+        stopTracking()
+
+        mapWidget.visibility = View.GONE
+        saveWidget.visibility = View.VISIBLE
+    }
+
+    fun showMapWidget() {
+        startTracking()
+
+        mapWidget.visibility = View.VISIBLE
+        saveWidget.visibility = View.GONE
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

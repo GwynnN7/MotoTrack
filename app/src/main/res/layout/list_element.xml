@@ -37,7 +37,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="5dp"
-                android:text="Wednsdaydwadaw 10 may 2025"
+                android:text="Wednsday 10 may 2025"
                 android:layout_gravity="center"
                 android:gravity="center"
                 android:layout_weight="3"

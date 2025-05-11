@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
@@ -42,17 +43,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun requestPermissions() {
-        val requestLocationPermission = registerForActivityResult(
-            ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
+        val requestPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
                 Toast.makeText(applicationContext, "Permission Granted!", Toast.LENGTH_SHORT).show()
             }
         }
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                 Toast.makeText(applicationContext, "Enable GPS permission to continue", Toast.LENGTH_SHORT).show()
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
@@ -61,7 +57,13 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
                 finish()
             }
-            else requestLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            else {
+                val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                requestPermissions.launch(permissions.toTypedArray())
+            }
         }
     }
 }

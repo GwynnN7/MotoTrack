@@ -18,7 +18,7 @@ class LeanTracker {
 
     fun stopCalibration() {
         if (calibrationHistory.size < 2) return
-        startPosition = calibrationHistory.first()
+        startPosition = calibrationHistory.first().copyOf()
 
         val delta = DoubleArray(3) { 0.0 }
         for (i in 1 until calibrationHistory.size) {
@@ -27,7 +27,7 @@ class LeanTracker {
             }
         }
 
-        axisIndex= delta.withIndex().maxByOrNull { it.value }?.index ?: 0
+        axisIndex = delta.withIndex().maxByOrNull { it.value }?.index ?: 0
 
         isCalibrating = false
         calibrationHistory.clear()
@@ -49,6 +49,6 @@ class LeanTracker {
             return 0
         }
 
-        return abs((degrees[axisIndex] - startPosition[axisIndex]).roundToInt())
+        return abs((degrees[axisIndex] - startPosition[axisIndex])).roundToInt()
     }
 }

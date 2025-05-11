@@ -25,8 +25,8 @@ data class RideData(
     var rideId: Long,
     val latitude: Double,
     val longitude: Double,
-    val altitude: Double,
-    val acceleration: Double,
-    val speed: Int,
-    val leanAngle: Int
+    var altitude: Double,
+    var acceleration: Double,
+    var speed: Int,
+    var leanAngle: Int
 ): Parcelable

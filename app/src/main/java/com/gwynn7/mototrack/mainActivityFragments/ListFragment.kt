@@ -8,8 +8,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.gwynn7.mototrack.R
 import com.gwynn7.mototrack.RidesAdapter
 import com.gwynn7.mototrack.TrackActivity
 import com.gwynn7.mototrack.database.RideDAO
@@ -46,12 +44,13 @@ class ListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val list = view.findViewById<RecyclerView>(R.id.ridesList)
+        val list = binding.ridesList
         list.layoutManager = LinearLayoutManager(requireContext())
         lifecycleScope.launch {
             val rides = withContext(Dispatchers.IO){
                 rideDao.getRides()
             }
+            if(rides.isNotEmpty()) binding.placeholder.visibility = View.GONE
             val adapter = RidesAdapter(rides.reversed())
             list.adapter = adapter
         }

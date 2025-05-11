@@ -20,6 +20,17 @@
         android:layout_height="280dp"
         android:text="Getting GPS Signal"
         android:textSize="32sp" />
+    <TextView
+        android:id="@+id/messageText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Put your bike upright before!"
+        android:layout_gravity="bottom|center"
+        android:textSize="20dp"
+        android:textStyle="italic"
+        android:visibility="invisible"
+        android:layout_marginBottom="200dp"
+        />
 </FrameLayout>
 
 <FrameLayout
