@@ -1,14 +1,20 @@
-package com.gwynn7.mototrack.mainActivityFragments
+package com.gwynn7.mototrack.rideList
 
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.gwynn7.mototrack.RidesAdapter
+import com.gwynn7.mototrack.R
 import com.gwynn7.mototrack.TrackActivity
 import com.gwynn7.mototrack.database.RideDAO
 import com.gwynn7.mototrack.database.RideDatabase
@@ -17,7 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ListFragment : Fragment() {
+class ListFragment : Fragment(), MenuProvider {
 
     private var _binding: ListFragmentBinding? = null
     private val binding get() = _binding!!
@@ -30,7 +36,7 @@ class ListFragment : Fragment() {
     ): View {
         _binding = ListFragmentBinding.inflate(inflater, container, false)
 
-        val db = RideDatabase.getInstance(requireContext())
+        val db = RideDatabase.Companion.getInstance(requireContext())
         rideDao = db.rideDao()
 
         binding.fab.setOnClickListener { view ->
@@ -43,11 +49,16 @@ class ListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        requireActivity().addMenuProvider(this, viewLifecycleOwner, Lifecycle.State.RESUMED)
+    }
+
+    override fun onResume() {
+        super.onResume()
 
         val list = binding.ridesList
         list.layoutManager = LinearLayoutManager(requireContext())
         lifecycleScope.launch {
-            val rides = withContext(Dispatchers.IO){
+            val rides = withContext(Dispatchers.IO) {
                 rideDao.getRides()
             }
             if(rides.isNotEmpty()) binding.placeholder.visibility = View.GONE
@@ -59,5 +70,21 @@ class ListFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.settings_menu, menu)
+    }
+
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        return when (menuItem.itemId) {
+            R.id.action_settings ->
+            {
+                val action = ListFragmentDirections.actionListToSettings()
+                findNavController().navigate(action)
+                true
+            }
+            else -> false
+        }
     }
 }

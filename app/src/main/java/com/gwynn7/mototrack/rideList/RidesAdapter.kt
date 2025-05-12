@@ -1,4 +1,4 @@
-package com.gwynn7.mototrack
+package com.gwynn7.mototrack.rideList
 
 import android.graphics.BitmapFactory
 import android.view.LayoutInflater
@@ -10,13 +10,13 @@ import androidx.cardview.widget.CardView
 import androidx.navigation.findNavController
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.imageview.ShapeableImageView
+import com.gwynn7.mototrack.R
 import com.gwynn7.mototrack.database.Ride
-import com.gwynn7.mototrack.mainActivityFragments.ListFragmentDirections
+import com.gwynn7.mototrack.formatTime
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 
 class RidesAdapter(private val rides: List<Ride>) :
     RecyclerView.Adapter<RidesAdapter.ViewHolder>() {
@@ -30,8 +30,7 @@ class RidesAdapter(private val rides: List<Ride>) :
     }
 
     override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(viewGroup.context)
-            .inflate(R.layout.list_element, viewGroup, false)
+        val view = LayoutInflater.from(viewGroup.context).inflate(R.layout.list_element, viewGroup, false)
 
         return ViewHolder(view)
     }
@@ -48,7 +47,7 @@ class RidesAdapter(private val rides: List<Ride>) :
         val date = Date(rides[position].startTime)
         val format = SimpleDateFormat("EEEE dd MMM yyyy", Locale.getDefault())
 
-        viewHolder.timeText.text = getRideDuration(rides[position].startTime, rides[position].endTme)
+        viewHolder.timeText.text = formatTime(rides[position].totalSeconds)
         viewHolder.dateText.text = format.format(date).replaceFirstChar{i -> i.uppercase()}
 
         viewHolder.cardView.setOnClickListener {
@@ -58,15 +57,4 @@ class RidesAdapter(private val rides: List<Ride>) :
     }
 
     override fun getItemCount() = rides.size
-
-    fun getRideDuration(start: Long, end: Long): String
-    {
-        val duration = end - start
-        val totalSeconds = duration / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-        return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
 }

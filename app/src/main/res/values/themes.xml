@@ -1,17 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.MotoTrack" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorOnBackground">@color/black</item>
     </style>
 
     <style name="Theme.MotoTrack" parent="Base.Theme.MotoTrack" />
 
-    <style name="ShapeAppearanceOverlay.App.SelectedCornerRadius" parent="">
+    <style name="ShapeAppearanceOverlay.App.Image" parent="">
         <item name="cornerSize">20dp</item>
-        <item name="cornerFamily">rounded</item>
-    </style>
-    <style name="ShapeAppearanceOverlay.App.ButtonRadius" parent="">
-        <item name="cornerSize">600dp</item>
         <item name="cornerFamily">rounded</item>
     </style>
 </resources>

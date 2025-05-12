@@ -13,7 +13,7 @@ data class Ride(
     val id: Long = 0,
     var totalDistance: Double = 0.0,
     var startTime: Long = 0,
-    var endTme: Long = 0,
+    var totalSeconds: Long = 0,
     var snapshot: String? = null
 ): Parcelable
 

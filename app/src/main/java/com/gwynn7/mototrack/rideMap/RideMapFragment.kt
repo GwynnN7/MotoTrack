@@ -1,7 +1,6 @@
-package com.gwynn7.mototrack.mainActivityFragments
+package com.gwynn7.mototrack.rideMap
 
 import android.graphics.Color
-import android.location.Location
 import androidx.fragment.app.Fragment
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -19,7 +18,6 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import com.gwynn7.mototrack.R
-import com.gwynn7.mototrack.database.Ride
 import com.gwynn7.mototrack.database.RideData
 import com.gwynn7.mototrack.databinding.FragmentRideMapBinding
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +26,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 enum class Pages(val value: Int)
@@ -43,7 +40,7 @@ enum class Pages(val value: Int)
     }
 }
 
-class RideMapFragment(private val pageId: Int, private val ride: Ride, private val rideData: List<RideData>): Fragment(), OnMapReadyCallback {
+class RideMapFragment(private val pageId: Int, private val rideData: List<RideData>): Fragment(), OnMapReadyCallback {
     private var _binding: FragmentRideMapBinding? = null
     private val binding get() = _binding!!
 
@@ -51,13 +48,11 @@ class RideMapFragment(private val pageId: Int, private val ride: Ride, private v
     private var lastMarker: Marker? = null
 
     private var pageType: Pages = Pages.Lean
-    private lateinit var downSampledData: List<RideData>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         pageType = Pages.fromInt(pageId) ?: Pages.Lean
-        downSampledData = downSampleData(rideData)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -84,24 +79,24 @@ class RideMapFragment(private val pageId: Int, private val ride: Ride, private v
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
         mMap.isIndoorEnabled = false
 
-        if(downSampledData.isEmpty()) return
+        if(rideData.isEmpty()) return
 
-        val start = LatLng(downSampledData.first().latitude, downSampledData.first().longitude)
-        val end = LatLng(downSampledData.last().latitude, downSampledData.last().longitude)
+        val start = LatLng(rideData.first().latitude, rideData.first().longitude)
+        val end = LatLng(rideData.last().latitude, rideData.last().longitude)
 
         val maxIndex = when(pageType)
         {
-            Pages.Lean -> downSampledData.withIndex().maxByOrNull { it.value.leanAngle }
-            Pages.Speed -> downSampledData.withIndex().maxByOrNull { it.value.speed }
-            Pages.Acceleration -> downSampledData.withIndex().maxByOrNull { it.value.acceleration }
-            Pages.Altitude -> downSampledData.withIndex().maxByOrNull { it.value.altitude }
+            Pages.Lean -> rideData.withIndex().maxByOrNull { it.value.leanAngle }
+            Pages.Speed -> rideData.withIndex().maxByOrNull { it.value.speed }
+            Pages.Acceleration -> rideData.withIndex().maxByOrNull { it.value.acceleration }
+            Pages.Altitude -> rideData.withIndex().maxByOrNull { it.value.altitude }
         }?.index ?: 0
 
-        var maxValuePosition = LatLng(downSampledData[maxIndex].latitude, downSampledData[maxIndex].longitude)
+        var maxValuePosition = LatLng(rideData[maxIndex].latitude, rideData[maxIndex].longitude)
         if(maxIndex > 0)
         {
-            val newLat = downSampledData[maxIndex - 1].latitude + (maxValuePosition.latitude - downSampledData[maxIndex - 1].latitude) / 2
-            val newLong = downSampledData[maxIndex - 1].longitude + (maxValuePosition.longitude - downSampledData[maxIndex - 1].longitude) / 2
+            val newLat = rideData[maxIndex - 1].latitude + (maxValuePosition.latitude - rideData[maxIndex - 1].latitude) / 2
+            val newLong = rideData[maxIndex - 1].longitude + (maxValuePosition.longitude - rideData[maxIndex - 1].longitude) / 2
             maxValuePosition = LatLng(newLat, newLong)
         }
         mMap.addMarker(
@@ -123,7 +118,7 @@ class RideMapFragment(private val pageId: Int, private val ride: Ride, private v
         )
 
         val builder = LatLngBounds.Builder()
-        downSampledData.forEach { builder.include(LatLng(it.latitude, it.longitude)) }
+        rideData.forEach { builder.include(LatLng(it.latitude, it.longitude)) }
         val bounds = builder.build()
         val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
         mMap.moveCamera(cameraUpdate)
@@ -135,22 +130,22 @@ class RideMapFragment(private val pageId: Int, private val ride: Ride, private v
     }
 
     private fun drawRidePath() {
-        if(downSampledData.size < 2) return
+        if(rideData.size < 2) return
 
         lifecycleScope.launch {
             val polylineData = withContext(Dispatchers.Default) {
                 val lines = mutableListOf<PolylineOptions>()
 
-                for (i in 1 until downSampledData.size) {
-                    val p1 = LatLng(downSampledData[i-1].latitude, downSampledData[i-1].longitude)
-                    val p2 = LatLng(downSampledData[i].latitude, downSampledData[i].longitude)
+                for (i in 1 until rideData.size) {
+                    val p1 = LatLng(rideData[i-1].latitude, rideData[i-1].longitude)
+                    val p2 = LatLng(rideData[i].latitude, rideData[i].longitude)
 
                     val value = when(pageType)
                     {
-                        Pages.Lean -> downSampledData[i].leanAngle
-                        Pages.Speed -> downSampledData[i].speed
-                        Pages.Acceleration -> downSampledData[i].acceleration.roundToInt()
-                        Pages.Altitude -> downSampledData[i].altitude.roundToInt()
+                        Pages.Lean -> rideData[i].leanAngle
+                        Pages.Speed -> rideData[i].speed
+                        Pages.Acceleration -> rideData[i].acceleration.roundToInt()
+                        Pages.Altitude -> rideData[i].altitude.roundToInt()
                     }
                     val color = getColorFromRange(value)
                     lines.add(
@@ -200,58 +195,6 @@ class RideMapFragment(private val pageId: Int, private val ride: Ride, private v
         }
     }
 
-    fun downSampleData(data: List<RideData>): List<RideData> {
-        val newRideData: MutableList<RideData> = mutableListOf(data.first())
-        var index = 0
-        while(index < data.size - 1)
-        {
-            val p0 = data[index]
-            val p0Loc = Location("").apply {
-                latitude = p0.latitude
-                longitude = p0.longitude
-            }
-
-            var minBearing = 360f
-            var maxSpeed: Int = 0
-            var maxLean: Int = 0
-            var maxAcceleration: Double = 0.0
-            var maxAltitude: Double = 0.0
-
-            for(i in 1..10)
-            {
-                val px = data[index+i]
-                val pxLoc = Location("").apply {
-                    latitude = px.latitude
-                    longitude = px.longitude
-                }
-
-                val bearing = p0Loc.bearingTo(pxLoc)
-                minBearing = min(minBearing, bearing)
-
-                maxSpeed = max(maxSpeed, px.speed)
-                maxLean = max(maxLean, px.leanAngle)
-                maxAcceleration = max(maxAcceleration, px.acceleration)
-                maxAltitude = max(maxAltitude, px.altitude)
-
-                if(
-                    (abs(p0Loc.bearingTo(pxLoc) - minBearing) > 5) ||
-                    (abs(px.leanAngle - p0.leanAngle) >= 5) ||
-                    (px.leanAngle >= 20) ||
-                    (abs(px.acceleration - p0.acceleration) >= 4) ||
-                    (abs(px.speed - p0.speed) >= 20) ||
-                    (p0Loc.distanceTo(pxLoc) > 500) ||
-                    (i == 10 || index+i == data.size-1)
-                    )
-                {
-                    newRideData.add(px.copy(altitude = maxAltitude, acceleration = maxAcceleration, speed = maxSpeed, leanAngle = maxLean))
-                    index += i
-                    break
-                }
-            }
-        }
-        return newRideData
-    }
-
     private fun getMaxStatName(): String
     {
         val name = when(pageType)
@@ -268,10 +211,10 @@ class RideMapFragment(private val pageId: Int, private val ride: Ride, private v
     {
         return when(pageType)
         {
-            Pages.Lean -> "%d°".format(downSampledData[index].leanAngle)
-            Pages.Speed -> "%d km/h".format(downSampledData[index].speed)
-            Pages.Acceleration -> "%.2f m/s²".format(downSampledData[index].acceleration)
-            Pages.Altitude -> "%d m".format(downSampledData[index].altitude.roundToInt())
+            Pages.Lean -> "%d°".format(rideData[index].leanAngle)
+            Pages.Speed -> "%d km/h".format(rideData[index].speed)
+            Pages.Acceleration -> "%.2f m/s²".format(rideData[index].acceleration)
+            Pages.Altitude -> "%d m".format(rideData[index].altitude.roundToInt())
         }
     }
 

@@ -6,11 +6,10 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 class LeanTracker {
-
     var isCalibrating = false
     private val calibrationHistory = mutableListOf<DoubleArray>()
-    private var axisIndex: Int = 0
     private var startPosition: DoubleArray = DoubleArray(3)
+    private var axisIndex: Int = 0
 
     fun startCalibration() {
         isCalibrating = true

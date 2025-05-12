@@ -1,4 +1,4 @@
-package com.gwynn7.mototrack.mainActivityFragments
+package com.gwynn7.mototrack.rideMap
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -35,7 +35,6 @@ val statsNames = arrayOf(
 )
 
 class RideFragment : Fragment(), MenuProvider {
-
     private var _binding: RideFragmentBinding? = null
     private val binding get() = _binding!!
 
@@ -49,14 +48,13 @@ class RideFragment : Fragment(), MenuProvider {
     ): View {
         _binding = RideFragmentBinding.inflate(inflater, container, false)
 
-        val args: RideFragmentArgs by navArgs()
-
         val db = RideDatabase.getInstance(requireContext())
         rideDao = db.rideDao()
 
         binding.tabsLayout.visibility = View.GONE
         binding.loadingLayout.visibility = View.VISIBLE
 
+        val args: RideFragmentArgs by navArgs()
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 ride = rideDao.getRideById(args.rideId)
@@ -66,7 +64,7 @@ class RideFragment : Fragment(), MenuProvider {
             if(ride == null) findNavController().navigateUp()
             else
             {
-                val mapTypeAdapter = MapTypeAdapter(requireActivity(), ride!!, rideData)
+                val mapTypeAdapter = MapTypeAdapter(requireActivity(), rideData)
                 val viewPager: ViewPager2 = binding.mapTypePager
                 viewPager.adapter = mapTypeAdapter
                 viewPager.isUserInputEnabled = false
@@ -92,8 +90,7 @@ class RideFragment : Fragment(), MenuProvider {
         return when (menuItem.itemId) {
             R.id.action_delete ->
             {
-                if(ride != null)
-                {
+                if(ride != null) {
                     lifecycleScope.launch {
                         withContext(Dispatchers.IO) {
                             rideDao.deleteRide(ride!!.id)

@@ -7,7 +7,7 @@
 
     <fragment
         android:id="@+id/ListFragment"
-        android:name="com.gwynn7.mototrack.mainActivityFragments.ListFragment"
+        android:name="com.gwynn7.mototrack.rideList.ListFragment"
         android:label="@string/list_fragment_label"
         tools:layout="@layout/list_fragment">
 
@@ -16,26 +16,22 @@
             app:destination="@id/RideFragment" />
         <action
             android:id="@+id/action_list_to_settings"
-            app:destination="@id/SettingsFragment" />
+            app:destination="@id/settingsFragment" />
+
     </fragment>
     <fragment
         android:id="@+id/RideFragment"
-        android:name="com.gwynn7.mototrack.mainActivityFragments.RideFragment"
+        android:name="com.gwynn7.mototrack.rideMap.RideFragment"
         android:label="@string/ride_fragment_label"
         tools:layout="@layout/ride_fragment">
 
-        <action
-            android:id="@+id/action_ride_to_settings"
-            app:destination="@id/SettingsFragment" />
         <argument
             android:name="rideId"
             app:argType="long" />
     </fragment>
-
     <fragment
-        android:id="@+id/SettingsFragment"
-        android:name="com.gwynn7.mototrack.mainActivityFragments.SettingsFragment"
-        android:label="@string/settings_fragment_label"
-        tools:layout="@layout/settings_fragment">
-    </fragment>
+        android:id="@+id/settingsFragment"
+        android:name="com.gwynn7.mototrack.SettingsFragment"
+        android:label="SettingsFragment" />
+
 </navigation>

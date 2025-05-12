@@ -1,12 +1,51 @@
 <resources>
-    <!-- Reply Preference -->
-    <string-array name="reply_entries">
-        <item>Reply</item>
-        <item>Reply to all</item>
+    <string-array name="polling_rates_text">
+        <item>250 ms</item>
+        <item>500 ms</item>
+        <item>750 ms</item>
+        <item>1000 ms</item>
+        <item>1500 ms</item>
+        <item>2000 ms</item>
     </string-array>
 
-    <string-array name="reply_values">
-        <item>reply</item>
-        <item>reply_all</item>
+    <string-array name="polling_rates">
+        <item>250</item>
+        <item>500</item>
+        <item>750</item>
+        <item>1000</item>
+        <item>1500</item>
+        <item>2000</item>
+    </string-array>
+
+    <string-array name="lean_warning_text">
+        <item>20°</item>
+        <item>30°</item>
+        <item>40°</item>
+        <item>50°</item>
+        <item>60°</item>
+    </string-array>
+
+    <string-array name="lean_warning_value">
+        <item>20</item>
+        <item>30</item>
+        <item>40</item>
+        <item>50</item>
+        <item>60</item>
+    </string-array>
+
+    <string-array name="speed_warning_text">
+        <item>130 km/h</item>
+        <item>160 km/h</item>
+        <item>180 km/h</item>
+        <item>200 km/h</item>
+        <item>250 km/h</item>
+    </string-array>
+
+    <string-array name="speed_warning_value">
+        <item>130</item>
+        <item>160</item>
+        <item>180</item>
+        <item>200</item>
+        <item>250</item>
     </string-array>
 </resources>

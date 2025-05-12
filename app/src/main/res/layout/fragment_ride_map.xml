@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/frag_map"
-        tools:context=".mainActivityFragments.RideMapFragment"
+        tools:context=".rideMap.RideMapFragment"
         android:name="com.google.android.gms.maps.SupportMapFragment"/>
 
     <FrameLayout
