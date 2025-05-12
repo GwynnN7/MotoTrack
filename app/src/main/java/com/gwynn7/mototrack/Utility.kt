@@ -4,8 +4,13 @@ import android.app.Notification
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import java.util.Locale
+import androidx.core.graphics.createBitmap
 
 fun formatTime(seconds: Long): String {
     val hours = seconds / 3600
@@ -22,4 +27,15 @@ fun createNotification(context: Context, resources: Resources, title: String, te
         .setContentText(text)
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setDefaults(Notification.DEFAULT_ALL)
+}
+
+fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor {
+    val vectorDrawable = ContextCompat.getDrawable(context, vectorResId)!!
+    vectorDrawable.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
+
+    val bitmap = createBitmap(vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
+    val canvas = Canvas(bitmap)
+    vectorDrawable.draw(canvas)
+
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
 }

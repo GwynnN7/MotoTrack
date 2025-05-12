@@ -47,6 +47,11 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.CircularBounds
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.libraries.places.api.net.SearchNearbyRequest
 import com.gwynn7.mototrack.database.Ride
 import com.gwynn7.mototrack.database.RideDAO
 import com.gwynn7.mototrack.database.RideData
@@ -55,17 +60,9 @@ import com.gwynn7.mototrack.databinding.ActivityTrackBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -80,6 +77,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
     private lateinit var locationManager: LocationManager
     private lateinit var notificationManager: NotificationManager
     private lateinit var vibrator: Vibrator
+    private var placesClient: PlacesClient? = null
     private var accelerationSensor: Sensor? = null
     private var gravitySensor: Sensor? = null
 
@@ -206,6 +204,12 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
         rideData = mutableListOf()
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
 
+        val apiKey = BuildConfig.MAPS_API_KEY
+        if (apiKey.isNotEmpty() && apiKey != "DEFAULT_API_KEY") {
+            Places.initializeWithNewPlacesApiEnabled(applicationContext, apiKey)
+            placesClient = Places.createClient(this)
+        }
+
         pollingRate = sharedPrefs.getString("polling_rate", pollingRate.toString())!!.toLong()
         speedWarning = if(sharedPrefs.getBoolean("speed_warning", true)) sharedPrefs.getString("speed_warning_list", "180")?.toInt() else null
         leanWarning = if(sharedPrefs.getBoolean("lean_warning", false)) sharedPrefs.getString("lean_warning_list", "40")?.toInt() else null
@@ -270,6 +274,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
                 MarkerOptions()
                     .position(LatLng(currentLocation!!.latitude, currentLocation!!.longitude))
                     .title("Last Parking Location")
+                    .icon(bitmapDescriptorFromVector(applicationContext, R.drawable.parking))
             )
             lastParkingLocation?.showInfoWindow()
         }
@@ -311,7 +316,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
     fun calibrate(){
         val timer = object : CountDownTimer(4500, 500) {
             override fun onTick(millisUntilFinished: Long) {
-                if(millisUntilFinished <= 1000) messageText.text = "Let's Ride!"
+                if(millisUntilFinished <= 1000) messageText.text = "Keep the app on the screen!"
             }
 
             override fun onFinish() {
@@ -377,6 +382,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
                 MarkerOptions()
                     .position(LatLng(newLocation.latitude, newLocation.longitude))
                     .title("Start")
+                    .icon(bitmapDescriptorFromVector(applicationContext, R.drawable.location_start))
             )
         }
         else
@@ -418,61 +424,50 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
     }
 
     private fun getNearbyFuelStations(location: Location) {
-        val url = HttpUrl.Builder()
-            .scheme("https")
-            .host("maps.googleapis.com")
-            .addPathSegments("maps/api/place/nearbysearch/json")
-            .addQueryParameter("location", String.format(Locale.US, "%f,%f", location.latitude, location.longitude))
-            .addQueryParameter("radius", "2000")
-            .addQueryParameter("type", "gas_station")
-            .addQueryParameter("key", BuildConfig.MAPS_API_KEY)
+        if(placesClient == null) return
+
+        val placeFields = listOf(Place.Field.DISPLAY_NAME, Place.Field.LOCATION)
+        val bounds = CircularBounds.newInstance(LatLng(location.latitude, location.longitude), 2000.0)
+        val types = listOf("gas_station")
+        val searchNearby = SearchNearbyRequest.builder(bounds, placeFields)
+            .setIncludedTypes(types)
+            .setMaxResultCount(10)
             .build()
 
-        val request = Request.Builder().url(url).build()
-
-        val client = OkHttpClient()
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {}
-            override fun onResponse(call: Call, response: Response) {
-                response.body?.string()?.let { body ->
-                    val json = JSONObject(body)
-                    val results = json.getJSONArray("results")
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.Main){
-                            for (i in 0 until results.length()) {
-                                val place = results.getJSONObject(i)
-                                val name = place.getString("name")
-                                val stationLoc = place.getJSONObject("geometry").getJSONObject("location")
-                                val lat = stationLoc.getDouble("lat")
-                                val lng = stationLoc.getDouble("lng")
-
-                                val stationLocation = Location("").apply {
-                                    latitude = lat
-                                    longitude = lng
-                                }
-                                val marker = mMap.addMarker(
-                                    MarkerOptions()
-                                        .position(LatLng(lat, lng))
-                                        .title(name)
-                                        .snippet("%.2f km".format(location.distanceTo(stationLocation)))
-                                )
-
-                                if(fuelStations.isEmpty()) marker?.showInfoWindow()
-                                marker?.let { fuelStations.add(it) }
+        placesClient!!.searchNearby(searchNearby)
+            .addOnSuccessListener { response ->
+                val places: List<Place?>? = response.places
+                if(places == null) return@addOnSuccessListener
+                lifecycleScope.launch {
+                    withContext(Dispatchers.Main){
+                        for (place in places) {
+                            if(place == null) continue
+                            val stationLocation = Location("").apply {
+                                latitude = place.location!!.latitude
+                                longitude = place.location!!.latitude
                             }
 
-                            if(fuelStations.isNotEmpty())
-                            {
-                                val builder = LatLngBounds.Builder()
-                                fuelStations.forEach { builder.include(it.position) }
-                                val cameraUpdate = CameraUpdateFactory.newLatLngBounds(builder.build(), 100)
-                                mMap.moveCamera(cameraUpdate)
-                            }
+                           val marker = mMap.addMarker(
+                               MarkerOptions()
+                                   .position(place.location!!)
+                                   .title(place.displayName)
+                                   .snippet("%.2f km".format(location.distanceTo(stationLocation)))
+                                   .icon(bitmapDescriptorFromVector(applicationContext, R.drawable.gas_station))
+                            )
+
+                            if(fuelStations.isEmpty()) marker?.showInfoWindow()
+                            marker?.let { fuelStations.add(it) }
+                        }
+
+                        if(fuelStations.isNotEmpty()) {
+                            val builder = LatLngBounds.Builder()
+                            fuelStations.forEach { builder.include(it.position) }
+                            val cameraUpdate = CameraUpdateFactory.newLatLngBounds(builder.build(), 100)
+                            mMap.moveCamera(cameraUpdate)
                         }
                     }
                 }
             }
-        })
     }
 
     private fun removeFuelStations(){
@@ -537,6 +532,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListen
             MarkerOptions()
                 .position(LatLng(rideData.last().latitude, rideData.last().longitude))
                 .title("End")
+                .icon(bitmapDescriptorFromVector(applicationContext, R.drawable.location_end))
         )
         screenshotAndSave()
     }

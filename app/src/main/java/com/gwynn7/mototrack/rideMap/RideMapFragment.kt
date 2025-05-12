@@ -18,6 +18,7 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import com.gwynn7.mototrack.R
+import com.gwynn7.mototrack.bitmapDescriptorFromVector
 import com.gwynn7.mototrack.database.RideData
 import com.gwynn7.mototrack.databinding.FragmentRideMapBinding
 import kotlinx.coroutines.Dispatchers
@@ -104,17 +105,20 @@ class RideMapFragment(private val pageId: Int, private val rideData: List<RideDa
                 .position(maxValuePosition)
                 .title(getMaxStatName())
                 .snippet(getStatValue(maxIndex))
+                .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.max_value))
         )
 
-        mMap.addMarker(
+       mMap.addMarker(
             MarkerOptions()
                 .position(start)
                 .title("Start")
+                .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.location_start))
         )
         mMap.addMarker(
             MarkerOptions()
                 .position(end)
                 .title("End")
+                .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.location_end))
         )
 
         val builder = LatLngBounds.Builder()
@@ -187,6 +191,7 @@ class RideMapFragment(private val pageId: Int, private val rideData: List<RideDa
                     MarkerOptions()
                         .position(pointPosition)
                         .title(getStatValue(index+1))
+                        .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.location_click))
                 )
                 lastMarker?.remove()
                 marker?.showInfoWindow()
