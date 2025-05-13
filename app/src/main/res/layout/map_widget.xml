@@ -38,11 +38,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textAlignment="center"
-                    android:textSize="25dp"
+                    android:textSize="25sp"
                     android:textColor="?attr/colorOnBackground"
                     android:paddingHorizontal="5dp"
                     android:textStyle="bold"
-                    android:text="-30°" />
+                    android:text="0°" />
 
             </LinearLayout>
 
@@ -75,9 +75,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textAlignment="center"
-                    android:textSize="25dp"
+                    android:textSize="25sp"
                     android:textStyle="bold"
-                    android:text="30" />
+                    android:text="0" />
             </LinearLayout>
         </LinearLayout>
 

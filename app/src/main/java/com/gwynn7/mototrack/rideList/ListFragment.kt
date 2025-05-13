@@ -30,15 +30,14 @@ class ListFragment : Fragment(), MenuProvider {
 
     private lateinit var rideDao: RideDAO
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = ListFragmentBinding.inflate(inflater, container, false)
 
-        val db = RideDatabase.Companion.getInstance(requireContext())
+        //Load database
+        val db = RideDatabase.getInstance(requireContext())
         rideDao = db.rideDao()
 
+        //Start tracking activity on floating action button click
         binding.fab.setOnClickListener { view ->
             val intent = Intent(activity, TrackActivity::class.java)
             startActivity(intent)
@@ -49,27 +48,29 @@ class ListFragment : Fragment(), MenuProvider {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        //Allow fragment to contribute to the menu
         requireActivity().addMenuProvider(this, viewLifecycleOwner, Lifecycle.State.RESUMED)
     }
 
     override fun onResume() {
         super.onResume()
 
+        //Get RecyclerView and set layout type
         val list = binding.ridesList
         list.layoutManager = LinearLayoutManager(requireContext())
+
+        //Launch a coroutine to load the rides from the database
         lifecycleScope.launch {
+            //Get rides from database on a different thread
             val rides = withContext(Dispatchers.IO) {
                 rideDao.getRides()
             }
-            if(rides.isNotEmpty()) binding.placeholder.visibility = View.GONE
-            val adapter = RidesAdapter(rides.reversed())
+            //Return to main thread to set the adapter and views
+            if(rides.isEmpty()) binding.placeholder.visibility = View.VISIBLE
+            //Set adapter for the RecyclerView, passing rideData
+            val adapter = RidesAdapter(rides.reversed(), viewLifecycleOwner)
             list.adapter = adapter
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -80,11 +81,17 @@ class ListFragment : Fragment(), MenuProvider {
         return when (menuItem.itemId) {
             R.id.action_settings ->
             {
+                //Navigate to settings fragment
                 val action = ListFragmentDirections.actionListToSettings()
                 findNavController().navigate(action)
                 true
             }
             else -> false
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

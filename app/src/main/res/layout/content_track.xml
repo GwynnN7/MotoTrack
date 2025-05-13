@@ -4,40 +4,30 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
-    app:layout_behavior="@string/appbar_scrolling_view_behavior">>
+    app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
 
 <FrameLayout
     android:id="@+id/calibrationLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:visibility="visible">
-    <Button
-        android:id="@+id/calibrationButton"
-        android:layout_marginBottom="20dp"
-        android:layout_gravity="center"
-        android:layout_width="280dp"
-        android:layout_height="280dp"
-        android:text="Getting GPS Signal"
-        android:textSize="32sp" />
-    <TextView
-        android:id="@+id/messageText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Put your bike upright before!"
-        android:layout_gravity="bottom|center"
-        android:textSize="20dp"
-        android:textStyle="italic"
-        android:visibility="invisible"
-        android:layout_marginBottom="200dp"
-        />
+    android:layout_gravity="center">
+        <Button
+            android:id="@+id/calibrationButton"
+            android:layout_gravity="center"
+            android:layout_width="280dp"
+            android:layout_height="280dp"
+            android:text="@string/getting_gps_signal"
+            android:enabled="false"
+            android:textSize="32sp" />
+
 </FrameLayout>
+
 
 <FrameLayout
     android:id="@+id/mapLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:visibility="gone">
+    android:layout_height="match_parent">
 
     <androidx.fragment.app.FragmentContainerView
         android:name="com.google.android.gms.maps.SupportMapFragment"

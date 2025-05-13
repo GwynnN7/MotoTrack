@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -22,17 +23,11 @@ import com.gwynn7.mototrack.database.RideDAO
 import com.gwynn7.mototrack.database.RideData
 import com.gwynn7.mototrack.database.RideDatabase
 import com.gwynn7.mototrack.databinding.RideFragmentBinding
+import com.gwynn7.mototrack.getStatsName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-
-val statsNames = arrayOf(
-    R.string.lean_title,
-    R.string.speed_title,
-    R.string.acceleration_title,
-    R.string.altitude_title
-)
 
 class RideFragment : Fragment(), MenuProvider {
     private var _binding: RideFragmentBinding? = null
@@ -41,39 +36,48 @@ class RideFragment : Fragment(), MenuProvider {
     private lateinit var rideDao: RideDAO
     private var ride: Ride? = null
     private var rideData: List<RideData> = listOf()
+    private val rideDataViewModel: RideDataViewModel by activityViewModels()
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = RideFragmentBinding.inflate(inflater, container, false)
 
+        //Load database
         val db = RideDatabase.getInstance(requireContext())
         rideDao = db.rideDao()
 
+        //Set loading screen
         binding.tabsLayout.visibility = View.GONE
         binding.loadingLayout.visibility = View.VISIBLE
 
         val args: RideFragmentArgs by navArgs()
+        //Launch a coroutine to load the rides from the database
         lifecycleScope.launch {
+            //Get ride data and rides from database on a different thread
             withContext(Dispatchers.IO) {
                 ride = rideDao.getRideById(args.rideId)
                 rideData = rideDao.getRideDataByRideId(args.rideId)
             }
+            //Return to main thread to use the loaded data on the UI
+
+            rideDataViewModel.rideData = rideData //Update the data on the ViewModel
 
             if(ride == null) findNavController().navigateUp()
             else
             {
-                val mapTypeAdapter = MapTypeAdapter(requireActivity(), rideData)
+                //Setup adapter for ViewPager
+                val mapTypeAdapter = MapTypeAdapter(requireActivity())
                 val viewPager: ViewPager2 = binding.mapTypePager
                 viewPager.adapter = mapTypeAdapter
                 viewPager.isUserInputEnabled = false
 
+                //Setup tabs for ViewPager
                 val tabs: TabLayout = binding.mapTypeTab
-                TabLayoutMediator(tabs, viewPager) { tab, position -> tab.text = resources.getString(statsNames[position]) }.attach()
+                TabLayoutMediator(tabs, viewPager) { tab, position -> tab.text = resources.getString(getStatsName(position)) }.attach()
 
+                //Allow fragment to contribute to the menu
                 requireActivity().addMenuProvider(this@RideFragment, viewLifecycleOwner, Lifecycle.State.RESUMED)
 
+                //Remove loading screen
                 binding.tabsLayout.visibility = View.VISIBLE
                 binding.loadingLayout.visibility = View.GONE
             }
@@ -91,7 +95,9 @@ class RideFragment : Fragment(), MenuProvider {
             R.id.action_delete ->
             {
                 if(ride != null) {
+                    //Launch a coroutine to delete ride from the database
                     lifecycleScope.launch {
+                        //Delete rides and image on a different thread
                         withContext(Dispatchers.IO) {
                             rideDao.deleteRide(ride!!.id)
                             rideDao.deleteRideData(ride!!.id)
@@ -109,10 +115,6 @@ class RideFragment : Fragment(), MenuProvider {
             }
             else -> false
         }
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
     }
 
     override fun onDestroyView() {

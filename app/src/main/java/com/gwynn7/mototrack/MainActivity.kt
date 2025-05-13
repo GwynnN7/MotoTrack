@@ -26,12 +26,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        //Request permissions before continuing
         requestPermissions()
 
+        //Setup binding and action bar
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
+        //Setup navigation controller for fragments and enable support on action bar
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
@@ -45,15 +48,16 @@ class MainActivity : AppCompatActivity() {
     fun requestPermissions() {
         val requestPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-                Toast.makeText(applicationContext, "Permission Granted!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, getString(R.string.permission_granted), Toast.LENGTH_SHORT).show()
             }
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            //Launch permissions popup or redirect to settings if permission was previously denied by the user
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                Toast.makeText(applicationContext, "Enable GPS permission to continue", Toast.LENGTH_SHORT).show()
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                val uri = Uri.fromParts("package", packageName, null)
-                intent.data = uri
+                Toast.makeText(applicationContext, getString(R.string.enable_gps_permission), Toast.LENGTH_SHORT).show()
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                }
                 startActivity(intent)
                 finish()
             }

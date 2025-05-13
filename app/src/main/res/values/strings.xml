@@ -1,32 +1,50 @@
 <resources>
-    <string name="app_name">MotoTrack</string>
+    <string name="app_name" translatable="false">MotoTrack</string>
     <string name="action_settings">Settings</string>
-
-
     <string name="lean_title">Lean</string>
     <string name="speed_title">Speed</string>
     <string name="acceleration_title">Acceleration</string>
     <string name="altitude_title">Altitude</string>
-
     <string name="track_fragment_label">MotoTrack</string>
-    <string name="save_fragment_label">MotoTrack</string>
-    <string name="ride_fragment_label">MotoTrack</string>
+    <string name="ride_fragment_label">Ride Statistics</string>
     <string name="list_fragment_label">MotoTrack</string>
-    <string name="settings_fragment_label">MotoTrack</string>
+    <string name="settings_fragment_label">Settings</string>
     <string name="title_activity_track">MotoTrack</string>
     <string name="action_delete">Delete</string>
-    <!-- Preference Titles -->
-    <string name="messages_header">Messages</string>
-    <string name="sync_header">Sync</string>
-
-    <!-- Messages Preferences -->
-    <string name="signature_title">Your signature</string>
-    <string name="reply_title">Default reply action</string>
-
-    <!-- Sync Preferences -->
-    <string name="sync_title">Sync email periodically</string>
-    <string name="attachment_title">Download incoming attachments</string>
-    <string name="attachment_summary_on">Automatically download attachments for incoming emails
-    </string>
-    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <string name="notificationChannel" translatable="false">motoTrack</string>
+    <string name="channel_for_ride_notifications">Channel for ride notifications</string>
+    <string name="tracking_ready">Tracking ready to start</string>
+    <string name="tracking_active">Tracking active</string>
+    <string name="tracking_paused">Tracking paused</string>
+    <string name="tracking_will_start">Tracking will start as soon as you start going!</string>
+    <string name="motorcycle_stopped">Motorcycle stopped</string>
+    <string name="kickstand">Remember your kickstand when you get off!</string>
+    <string name="calibrate_and_start">Calibrate and Start</string>
+    <string name="last_parking_location">Parking location</string>
+    <string name="start">Start</string>
+    <string name="ride_too_short">Ride too short to be saved</string>
+    <string name="end">End</string>
+    <string name="screenshot">Taking a screenshot of your ride…</string>
+    <string name="permission_granted">Permission Granted!</string>
+    <string name="enable_location_allow_all_the_time">Enable \'Location: Allow all the time\' for best experience</string>
+    <string name="enable_gps_permission">Enable GPS permission to continue</string>
+    <string name="gps_polling_rate">GPS Polling Rate</string>
+    <string name="warnings_thresholds">Warnings Thresholds</string>
+    <string name="speed_warning_threshold">Speed Warning Threshold</string>
+    <string name="lean_warning_threshold">Lean Warning Threshold</string>
+    <string name="getting_gps_signal">Getting GPS Signal</string>
+    <string name="lean_angle_tracking">Lean Angle Tracking</string>
+    <string name="fuel_stations">Fuel Stations</string>
+    <string name="show_fuel_stations">Show Fuel Stations</string>
+    <string name="track_lean_angle">Track Lean Angle</string>
+    <string name="fuel_station_range">Fuel Station Range</string>
+    <string name="number_of_fuel_stations">Number of Fuel Stations</string>
+    <string name="warnings">Warnings</string>
+    <string name="show_speed_warning">Show Speed Warning</string>
+    <string name="show_lean_warning">Show Lean Warning</string>
+    <string name="upright_your_bike">Upright your bike</string>
+    <string name="lean_your_bike">Lean your bike</string>
+    <string name="ready_to_ride">Ready to Ride!</string>
+    <string name="start_a_new_ride">Start a new ride from the plus button</string>
+    <string name="tracking">Tracking</string>
 </resources>
