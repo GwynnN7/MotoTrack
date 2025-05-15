@@ -19,7 +19,7 @@
         android:roundIcon="@mipmap/app_icon_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MotoTrack"
-        tools:targetApi="31">
+        tools:targetApi="35">
 
         <service
             android:name=".TrackingService"

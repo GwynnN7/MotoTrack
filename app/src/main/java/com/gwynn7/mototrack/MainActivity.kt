@@ -26,9 +26,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //Request permissions before continuing
-        requestPermissions()
-
         //Setup binding and action bar
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -38,6 +35,9 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
+
+        //Request permissions before continuing
+        requestPermissions()
     }
 
     override fun onSupportNavigateUp(): Boolean {

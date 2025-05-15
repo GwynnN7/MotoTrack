@@ -42,7 +42,6 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 class TrackingService : Service(), SensorEventListener, LocationListener {
     private lateinit var sensorManager: SensorManager
@@ -59,7 +58,6 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO) //Create a coroutine scope for the service
     private val handler = Handler(Looper.getMainLooper())
 
-    private var startedMoving = false
     private var pollingRate = 750L
     private var leanTrackingEnabled = true
 
@@ -72,6 +70,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
     var lastLocation: Location? = null
     var lastParkingLocation: Location? = null
 
+    var startedMoving = false
     var gpsFound = false
     var trackingActive = false
     var isCalibrated = false
@@ -235,6 +234,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
             }
             Sensor.TYPE_GRAVITY -> {
                 leanTracker.addGravity(event.values)
+                if(!isCalibrated) return
 
                 val lean = leanTracker.calculateLeanAngle(event.values)
                 //Send lean angle to the activity
@@ -265,6 +265,9 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
         lastMaxAcceleration = 0f
     }
 
+    fun shouldShowFuelStations(): Boolean { //Called from the activity to decide whether to show fuel stations on resume or not
+        return startedMoving && !motorcycleMoving && trackingActive && lastLocation != null
+    }
 
     @SuppressLint("MissingPermission")
     override fun onLocationChanged(newLocation: Location) {

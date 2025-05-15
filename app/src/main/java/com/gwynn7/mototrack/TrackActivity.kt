@@ -115,9 +115,6 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
         //Set flag to keep the screen on while tracking the ride
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        //Request optional background location permission
-        requestBackgroundPermission()
-
         //Setup binding and action bar
         binding = ActivityTrackBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -176,6 +173,9 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
         if (savedState != null) {
             activityState = TrackActivityState.valueOf(savedState)
         }
+
+        //Request optional background location permission
+        requestBackgroundPermission()
     }
 
     override fun onStart() {
@@ -227,12 +227,11 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
             isBound = true
 
             //Setup the view based on the state of the activity
-            when(activityState)
-            {
+            when(activityState) {
                 TrackActivityState.SearchingGps -> checkGps()
                 TrackActivityState.Calibrating -> showCalibration()
                 TrackActivityState.Tracking ->
-                {
+                    {
                     showMap()
 
                     //Redraw map if activity was killed or refreshed
@@ -254,12 +253,11 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         drawStartMarker(LatLng(data.first().latitude, data.first().longitude))
                     }
-                    if(fuelStationsEnabled && !trackingService!!.motorcycleMoving && trackingService!!.trackingActive && trackingService!!.lastLocation != null)
-                    {
+
+                    if(trackingService!!.shouldShowFuelStations() && fuelStationsEnabled) {
                         getNearbyFuelStations(trackingService!!.lastLocation!!)
                     }
-                    if(trackingService!!.lastParkingLocation != null)
-                    {
+                    if(trackingService!!.lastParkingLocation != null) {
                         showLastParkingLocation(trackingService!!.lastParkingLocation!!)
                     }
                 }
