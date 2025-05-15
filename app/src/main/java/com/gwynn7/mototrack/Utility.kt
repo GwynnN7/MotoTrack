@@ -7,6 +7,34 @@ import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import java.util.Locale
 import androidx.core.graphics.createBitmap
+import kotlin.math.sqrt
+
+//Utility class for sensors data
+
+data class Vector3(val x: Float, val y: Float, val z: Float) {
+    companion object{
+        fun empty(): Vector3{
+            return Vector3(0f, 0f, 0f)
+        }
+        fun fromArray(array: FloatArray): Vector3 {
+            return Vector3(array[0], array[1], array[2])
+        }
+    }
+    operator fun plus(other: Vector3) = Vector3(x + other.x, y + other.y, z + other.z)
+    operator fun minus(other: Vector3) = Vector3(x - other.x, y - other.y, z - other.z)
+    operator fun div(value: Float) = Vector3(x / value, y / value, z / value)
+    operator fun times(value: Float) = Vector3(x * value, y * value, z * value)
+    fun dot(other: Vector3) = x * other.x + y * other.y + z * other.z
+    fun magnitude() = sqrt(x * x + y * y + z * z)
+    fun project(axis: Vector3) = this - axis * dot(axis)
+    fun normalize(): Vector3 {
+        val vectorMagnitude = magnitude()
+        return if (vectorMagnitude != 0f) Vector3(x / vectorMagnitude, y / vectorMagnitude, z / vectorMagnitude) else this
+    }
+}
+
+
+//Function to get stats name tab
 
 private val statsNames = arrayOf(
     R.string.lean_title,
@@ -14,7 +42,7 @@ private val statsNames = arrayOf(
     R.string.acceleration_title,
     R.string.altitude_title
 )
-//Function to get stats name tab
+
 fun getStatsName(index: Int): Int
 {
     return statsNames[index]
@@ -32,7 +60,6 @@ fun formatTime(seconds: Long): String {
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor {
     val vectorDrawable = ContextCompat.getDrawable(context, vectorResId)!!
     vectorDrawable.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
-
     val bitmap = createBitmap(vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
     val canvas = Canvas(bitmap)
     vectorDrawable.draw(canvas)

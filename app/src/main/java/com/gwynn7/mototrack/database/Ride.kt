@@ -27,7 +27,7 @@ data class RideData(
     val latitude: Double,
     val longitude: Double,
     var altitude: Double,
-    var acceleration: Double,
+    var acceleration: Float,
     var speed: Int,
     var leanAngle: Int
 ): Parcelable

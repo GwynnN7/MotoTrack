@@ -3,6 +3,7 @@ package com.gwynn7.mototrack
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
@@ -10,6 +11,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.location.Location
 import android.net.Uri
@@ -209,7 +211,8 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun stopService() {
         unbindService()
-        stopService(Intent(this, TrackingService::class.java))
+        val intentService = Intent(this, TrackingService::class.java)
+        stopService(intentService)
     }
 
     private fun quit(){
@@ -251,7 +254,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         drawStartMarker(LatLng(data.first().latitude, data.first().longitude))
                     }
-                    if(!trackingService!!.motorcycleMoving && trackingService!!.trackingActive && trackingService!!.lastLocation != null)
+                    if(fuelStationsEnabled && !trackingService!!.motorcycleMoving && trackingService!!.trackingActive && trackingService!!.lastLocation != null)
                     {
                         getNearbyFuelStations(trackingService!!.lastLocation!!)
                     }
@@ -341,18 +344,15 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun calibrate(){
-        val calibrationTimer = object : CountDownTimer(9000, 250) {
+        val calibrationTimer = object : CountDownTimer(6500, 250) {
             //Calibration steps regulated by a timer
             override fun onTick(millisUntilFinished: Long) {
                 if(millisUntilFinished <= 1000) {
-                    calibrationButton.text = getString(R.string.ready_to_ride)
+                    calibrationButton.text = getString(R.string.enjoy_the_ride)
                 }
-                else if(millisUntilFinished <= 5000) {
-                    calibrationButton.text = getString(R.string.lean_your_bike)
-                }
-                else if(millisUntilFinished <= 5500)
-                {
+                else if(millisUntilFinished <= 4000) {
                     trackingService?.startCalibration()
+                    calibrationButton.text = getString(R.string.accelerate_forward)
                 }
             }
 
@@ -430,9 +430,10 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun showCalibration()
     {
-        trackingService?.endCalibration()
+        trackingService?.resetCalibration()
         if(!leanTrackingEnabled)
         {
+            trackingService?.endCalibration()
             showMap()
             return
         }
@@ -458,7 +459,7 @@ class TrackActivity : AppCompatActivity(), OnMapReadyCallback {
         activityState = TrackActivityState.Tracking
     }
 
-    //Functions to drwa on the map
+    //Functions to draw on the map
 
     private fun drawPolyline(lastLocation: LatLng, newLocation: LatLng) {
         val polylineOptions = PolylineOptions()

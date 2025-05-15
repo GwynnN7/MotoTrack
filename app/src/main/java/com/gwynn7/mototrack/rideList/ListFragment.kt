@@ -39,6 +39,7 @@ class ListFragment : Fragment(), MenuProvider {
 
         //Start tracking activity on floating action button click
         binding.fab.setOnClickListener { view ->
+            binding.placeholder.visibility = View.GONE
             val intent = Intent(activity, TrackActivity::class.java)
             startActivity(intent)
         }

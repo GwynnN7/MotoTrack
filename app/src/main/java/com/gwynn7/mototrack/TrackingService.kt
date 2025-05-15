@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -25,7 +26,6 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.core.app.NotificationCompat
 import androidx.preference.PreferenceManager
 import com.google.android.gms.maps.model.LatLng
 import com.gwynn7.mototrack.database.Ride
@@ -62,11 +62,10 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
     private var startedMoving = false
     private var pollingRate = 750L
     private var leanTrackingEnabled = true
-    private lateinit var notificationImage: Bitmap
 
     private var lastRideData: RideData? = null
     private var lastMaxLean: Int = 0
-    private var lastMaxAcceleration: Double = 0.0
+    private var lastMaxAcceleration: Float = 0f
 
     var ride: Ride = Ride()
     var rideData: MutableList<RideData> = mutableListOf()
@@ -75,11 +74,22 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
 
     var gpsFound = false
     var trackingActive = false
-    var calibrated = false
+    var isCalibrated = false
     var motorcycleMoving = false
 
     private val binder = LocalBinder()
     private var serviceListener: ServiceListener? = null
+
+    companion object {
+        private var notificationImage: Bitmap? = null
+
+        fun getNotificationImage(context: Context): Bitmap? {
+            if (notificationImage == null) {
+                notificationImage = BitmapFactory.decodeResource(context.resources, R.drawable.notification_big)
+            }
+            return notificationImage
+        }
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): TrackingService = this@TrackingService
@@ -123,11 +133,10 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
             description = getString(R.string.channel_for_ride_notifications)
             enableVibration(true)
         }
-        notificationImage = BitmapFactory.decodeResource(resources, R.drawable.logo)
         notificationManager.createNotificationChannel(channel)
 
         //Start the service as a foreground service, with the created notification
-        startForeground(1, createNotification())
+        startForeground(46, getServiceNotification())
 
         //Start tracking the ride
         startTracking()
@@ -135,33 +144,34 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        if(trackingActive) stopTracking()
         handler.removeCallbacks(runnableTimer) //Interrupt timer of notification update
-        stopForeground(STOP_FOREGROUND_REMOVE) //Stop the foreground service and destroy the notification
         notificationManager.cancelAll() //Destroy all the other notifications
         serviceScope.cancel() //Destroy the coroutine scope
     }
 
-    fun buildNotification(title: String, text: String): NotificationCompat.Builder {
+    fun buildNotification(title: String, text: String, onGoing: Boolean): Notification {
         //Setup intent for open the activity by clicking on the icon (launch the open activity if present)
         val intent = Intent(this, TrackActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
-        return NotificationCompat.Builder(applicationContext, getString(R.string.notificationChannel))
-            .setSmallIcon(R.drawable.bike)
-            .setLargeIcon(notificationImage)
+        return Notification.Builder(applicationContext, getString(R.string.notificationChannel))
+            .setSmallIcon(R.drawable.bike_notification)
+            .setLargeIcon(getNotificationImage(applicationContext))
             .setContentTitle(title)
             .setContentText(text)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(Notification.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
+            .setOngoing(onGoing)
+            .setOnlyAlertOnce(true)
+            .build()
     }
 
     //Function to create the notification based on the state of the ride
-    private fun createNotification(): Notification {
+    private fun getServiceNotification(): Notification {
         var title = getString(R.string.tracking_ready)
-        if(calibrated)
+        if(isCalibrated)
         {
             if(trackingActive) {
                 ride.totalSeconds++
@@ -169,12 +179,9 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
             }
             else  title = getString(R.string.tracking_paused)
         }
-        var text = if(calibrated) formatTime(ride.totalSeconds) else getString(R.string.tracking_will_start)
+        var text = if(isCalibrated) formatTime(ride.totalSeconds) else getString(R.string.tracking_will_start)
 
-        val notification = buildNotification(title, text)
-        notification.setOngoing(true)
-        notification.setOnlyAlertOnce(true)
-        return notification.build()
+        return buildNotification(title, text, true)
     }
 
     @SuppressLint("MissingPermission")
@@ -194,10 +201,10 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
         //Start requesting phone location
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, pollingRate, 0f, this)
 
-        trackingActive = true
+        trackingActive = isCalibrated
 
         //Vibrate phone on tracking start
-        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 100L, 100L, 100L), -1)
+        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 200L, 100L, 200L), -1)
         vibrator.vibrate(effect)
     }
 
@@ -212,23 +219,24 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
         lastParkingLocation = lastLocation
 
         //Vibrate phone on tracking stop
-        val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 50L, 50L, 50L), -1)
         vibrator.vibrate(effect)
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
-        if((!calibrated || !trackingActive) && !leanTracker.isCalibrating) return
+        if((!isCalibrated || !trackingActive) && !leanTracker.isCalibrating) return
         when (event?.sensor?.type) {
             Sensor.TYPE_LINEAR_ACCELERATION -> {
-                val ax = event.values[0]
-                val ay = event.values[1]
-                val az = event.values[2]
-                val accel = sqrt(ax * ax + ay * ay + az * az).toDouble() //Calculate module of acceleration
+                leanTracker.addAcceleration(event.values)
+
+                val acceleration = Vector3.fromArray(event.values)
                 //Update max acceleration since last saved rideData
-                lastMaxAcceleration = lastMaxAcceleration.coerceAtLeast(accel)
+                lastMaxAcceleration = lastMaxAcceleration.coerceAtLeast(acceleration.magnitude())
             }
             Sensor.TYPE_GRAVITY -> {
-                val lean = leanTracker.getLeanAngleGravity(event.values)
+                leanTracker.addGravity(event.values)
+
+                val lean = leanTracker.calculateLeanAngle(event.values)
                 //Send lean angle to the activity
                 serviceListener?.onUpdateLeanAngle(lean)
                 //Update max lean since last saved rideData
@@ -243,13 +251,18 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
         leanTracker.startCalibration() //Start reading data for lean angle calibration
     }
 
+    fun resetCalibration(){
+        leanTracker.resetCalibration()
+        isCalibrated = false
+    }
+
     fun endCalibration() {
         leanTracker.stopCalibration() //Stop reading data for calibration and start reading data for tracking
         trackingActive = true
-        calibrated = true
+        isCalibrated = true
 
         lastMaxLean = 0
-        lastMaxAcceleration = 0.0
+        lastMaxAcceleration = 0f
     }
 
 
@@ -260,7 +273,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
             serviceListener?.onGPSFound() //Signal the activity that GPS signal was found
             gpsFound = true
         }
-        if(!calibrated) return
+        if(!isCalibrated) return
 
         val newCoordinates = LatLng(newLocation.latitude, newLocation.longitude)
         val speed = if(newLocation.hasSpeed()) (newLocation.speed * 3.6f).roundToInt() else lastRideData?.speed ?: 0
@@ -281,12 +294,9 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
         {
             if(speed == 0) {
                 //If bike stopped, send notification and signal the activity
-                val activeNotifications = notificationManager.activeNotifications
-                if (!activeNotifications.any { it.id == 2 }) {
-                    val notification = buildNotification(getString(R.string.motorcycle_stopped), getString(R.string.kickstand))
-                    notification.setOngoing(true)
-                    notification.setOnlyAlertOnce(true)
-                    notificationManager.notify(2, notification.build())
+                if (motorcycleMoving) {
+                    val notification = buildNotification(getString(R.string.motorcycle_stopped), getString(R.string.kickstand), false)
+                    notificationManager.notify(117, notification)
 
                     serviceListener?.onMotorcycleStopped(newLocation)
                     motorcycleMoving = false
@@ -295,7 +305,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
             }
             else if(speed > 15) {
                 //If bike started moving again, remove notification and signal the activity
-                notificationManager.cancel(2)
+                notificationManager.cancel(117)
 
                 serviceListener?.onMotorcycleMoving()
                 motorcycleMoving = true
@@ -309,7 +319,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
         serviceListener?.onUpdateLocation(lastLocation, newLocation)
 
         lastMaxLean = 0
-        lastMaxAcceleration = 0.0
+        lastMaxAcceleration = 0f
         lastRideData = newData
         lastLocation = newLocation
     }
@@ -317,7 +327,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
     private val runnableTimer = object : Runnable {
         //Update the timer on the notification each second
         override fun run() {
-            notificationManager.notify(1, createNotification())
+            notificationManager.notify(46, getServiceNotification())
             handler.postDelayed(this, 1000)
         }
     }
@@ -360,7 +370,7 @@ class TrackingService : Service(), SensorEventListener, LocationListener {
             var minBearing = 360f
             var maxSpeed = 0
             var maxLean = 0
-            var maxAcceleration = 0.0
+            var maxAcceleration = 0f
             var maxAltitude = 0.0
 
             //Foreach point, scan the next max 10, and check when statistics change enough to become worth saving

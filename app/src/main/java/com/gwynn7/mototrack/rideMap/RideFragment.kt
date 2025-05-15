@@ -1,5 +1,7 @@
 package com.gwynn7.mototrack.rideMap
 
+import android.app.AlertDialog
+import android.app.Dialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -8,6 +10,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.MenuProvider
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -95,21 +98,26 @@ class RideFragment : Fragment(), MenuProvider {
             R.id.action_delete ->
             {
                 if(ride != null) {
-                    //Launch a coroutine to delete ride from the database
-                    lifecycleScope.launch {
-                        //Delete rides and image on a different thread
-                        withContext(Dispatchers.IO) {
-                            rideDao.deleteRide(ride!!.id)
-                            rideDao.deleteRideData(ride!!.id)
+                    val dialog = ConfirmDeleteDialog(
+                        deleteRide = {
+                            lifecycleScope.launch {
+                                //Delete rides and image on a different thread
+                                withContext(Dispatchers.IO) {
+                                    rideDao.deleteRide(ride!!.id)
+                                    rideDao.deleteRideData(ride!!.id)
 
-                            val filename = ride!!.snapshot
-                            if(filename != null){
-                                val file = File(requireContext().filesDir, filename)
-                                if(file.exists()) file.delete()
+                                    val filename = ride!!.snapshot
+                                    if(filename != null){
+                                        val file = File(requireContext().filesDir, filename)
+                                        if(file.exists()) file.delete()
+                                    }
+                                }
+                                findNavController().navigateUp()
                             }
                         }
-                        findNavController().navigateUp()
-                    }
+                    )
+                    dialog.show(parentFragmentManager, "DeleteDialog")
+
                 }
                 true
             }
@@ -120,5 +128,16 @@ class RideFragment : Fragment(), MenuProvider {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    class ConfirmDeleteDialog(private val deleteRide: () -> Unit, ) : DialogFragment() {
+        override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+            return AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.confirm_ride_delete))
+                .setMessage(getString(R.string.ask_delete))
+                .setPositiveButton(getString(R.string.yes)) { _, _ -> deleteRide() }
+                .setNegativeButton(getString(R.string.no)) { _, _, -> }
+                .create()
+        }
     }
 }

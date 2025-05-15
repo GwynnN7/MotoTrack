@@ -1,56 +1,61 @@
 package com.gwynn7.mototrack
 
-import kotlin.math.abs
-import kotlin.math.acos
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
-
-//Class to handle lean angle
+import kotlin.math.*
 
 class LeanTracker {
     var isCalibrating = false
-    private val calibrationHistory = mutableListOf<DoubleArray>()
-    private var startPosition: DoubleArray = DoubleArray(3) { 0.0 }
-    private var axisIndex: Int = 0
+
+    private var gravityVector: Vector3 = Vector3.empty()
+    private var forwardVector: Vector3 = Vector3.empty()
+    private val forwardVectors = mutableListOf<Vector3>()
+    private val gravityVectors = mutableListOf<Vector3>()
 
     fun startCalibration() {
-        calibrationHistory.clear()
         isCalibrating = true
+    }
+
+    fun resetCalibration() {
+        forwardVectors.clear()
+        gravityVectors.clear()
+        isCalibrating = false
     }
 
     fun stopCalibration() {
         isCalibrating = false
 
-        if (calibrationHistory.size < 2) return
-        startPosition = calibrationHistory.first().copyOf() //Set default position offset
+        //Get the max amplitude normalized vector for the forward direction
+        forwardVector = if(forwardVectors.isNotEmpty()) forwardVectors.maxBy { vector -> vector.magnitude() }.normalize() else forwardVector
 
-        //Foreach axis, get the one with the highest amplitude in movement during the calibration phase, thus becoming the "lean" axis
-        val delta = DoubleArray(3) { 0.0 }
-        for (i in 1 until calibrationHistory.size) {
-            for (j in 0..2) {
-                delta[j] += abs(calibrationHistory[i][j] - calibrationHistory[i - 1][j])
-            }
+        //Get the average of the gravity vectors for the default position
+        for(vector in gravityVectors)
+        {
+            gravityVector += vector
         }
-        axisIndex = delta.withIndex().maxByOrNull { it.value }?.index ?: 0
+        gravityVector /= gravityVectors.size.toFloat()
+
+        //Project gravity vector to the lean plane (orthogonal to the forward vector)
+        gravityVector = gravityVector.normalize().project(forwardVector).normalize()
     }
 
-    fun getLeanAngleGravity(values: FloatArray): Int {
-        var gravity = values.clone()
-        val normOfG = sqrt(gravity[0] * gravity[0] + gravity[1] * gravity[1] + gravity[2] * gravity[2]) //Calculate the norm on the gravity vector
+    fun addAcceleration(vector: FloatArray) {
+        if(!isCalibrating) return
+        forwardVectors.add(Vector3.fromArray(vector))
+    }
 
-        val degrees = DoubleArray(3)
-        for(i in 0..2)
-        {
-            gravity[i] = gravity[i] / normOfG //Normalize gravity vector
-            degrees[i] = Math.toDegrees(acos(gravity[i]).toDouble()) //Get axis inclination angle based on gravity intensity
-        }
+    fun addGravity(vector: FloatArray) {
+        if(!isCalibrating) return
+        gravityVectors.add(Vector3.fromArray(vector))
+    }
 
-        if (isCalibrating) {
-            calibrationHistory.add(degrees.copyOf())
-            return 0
-        }
+    fun calculateLeanAngle(gravity: FloatArray): Int {
+        if(isCalibrating) return 0
 
-        //Get lean angle considering the offset of the starting position
-        return abs((degrees[axisIndex] - startPosition[axisIndex])).roundToInt()
+        val leanVector = Vector3.fromArray(gravity).normalize()
+        //Project lean vector to the lean plane (orthogonal to the forward vector)
+        val leanProjection = leanVector.project(forwardVector).normalize()
+        //Calculate dot product between gravity vector and lean vector
+        val dotProduct = leanProjection.dot(gravityVector).coerceIn(-1f, 1f)
+        //Calculate the angle from the dot product
+        return Math.toDegrees(acos(dotProduct).toDouble()).roundToInt()
     }
 }
