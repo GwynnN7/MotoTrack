@@ -1,6 +1,8 @@
 # MotoTrack
 
-University "Mobile Applications" Project written in Kotlin
+University "Mobile Applications" Project written in Kotlin.
+
+Now integrated in [Motolog](https://github.com/GwynnN7/Motolog) application.
 
 ## Documentation
 
